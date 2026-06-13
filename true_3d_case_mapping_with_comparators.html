@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3D Case Mapping Graph</title>
+<style>
+body {
+  margin: 0;
+  background: #f6f6f6;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+}
+header {
+  text-align: center;
+  padding: 22px 30px 6px;
+}
+h1 {
+  margin: 0;
+  font-size: 26px;
+}
+.subtitle {
+  margin-top: 7px;
+  color: #444;
+  font-size: 14px;
+}
+.axis-key {
+  max-width: 1280px;
+  margin: 12px auto 0;
+  background: white;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.axis-key strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.stage {
+  min-height: 760px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1250px;
+  overflow: auto;
+}
+.scene {
+  width: 560px;
+  height: 560px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(62deg) rotateZ(-38deg);
+  margin-top: 80px;
+}
+.face {
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  box-sizing: border-box;
+  border: 2px solid rgba(0,0,0,.35);
+  background-size: 56px 56px;
+  background-image:
+    linear-gradient(to right, rgba(40,80,120,.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(40,80,120,.18) 1px, transparent 1px);
+}
+.floor {
+  transform: translateZ(0);
+  background-color: rgba(232,246,255,.65);
+}
+.back {
+  transform: rotateX(90deg) translateZ(-280px) translateY(-280px);
+  transform-origin: top;
+  background-color: rgba(255,255,255,.72);
+}
+.side {
+  transform: rotateY(90deg) translateZ(280px) translateX(280px);
+  transform-origin: right;
+  background-color: rgba(245,250,255,.72);
+}
+.axis-title {
+  position: absolute;
+  font-weight: bold;
+  font-size: 14px;
+  background: rgba(255,255,255,.88);
+  padding: 5px 7px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+.axis-x { left: 330px; top: 585px; transform: translateZ(5px) rotateZ(38deg) rotateX(-62deg); }
+.axis-y { left: -135px; top: 70px; transform: translateZ(5px) rotateZ(38deg) rotateX(-62deg); }
+.axis-z { left: 520px; top: -55px; transform: translateZ(575px) rotateZ(38deg) rotateX(-62deg); }
+.ticks span {
+  position: absolute;
+  font-size: 11px;
+  color: #333;
+  background: rgba(255,255,255,.72);
+  padding: 1px 3px;
+  border-radius: 3px;
+  transform: translateZ(4px) rotateZ(38deg) rotateX(-62deg);
+}
+.point-wrap {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+.point {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 2px solid #222;
+  box-shadow: 0 12px 22px rgba(0,0,0,.35);
+}
+.Present { background: #ff7f0e; box-shadow: 0 0 0 9px rgba(255,127,14,.24), 0 18px 30px rgba(0,0,0,.45); }
+.Acquittal { background: #2ca02c; }
+.s372 { background: #d62728; }
+.s264 { background: #9467bd; }
+.High { background: #555; }
+.stem {
+  position: absolute;
+  left: 8px;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0,0,0,.32);
+  transform-origin: bottom;
+  transform: rotateX(90deg);
+}
+.label {
+  position: absolute;
+  left: 24px;
+  top: -12px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid #bbb;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  transform: rotateZ(38deg) rotateX(-62deg);
+  box-shadow: 0 8px 14px rgba(0,0,0,.14);
+}
+.present-label {
+  left: 36px;
+  top: -50px;
+  background: #fff8dc;
+  border-color: #c8b870;
+  font-size: 13px;
+}
+.legend {
+  max-width: 1280px;
+  margin: 0 auto 25px;
+  background: white;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+.legend h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  font-size: 13px;
+}
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 10px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 6px 7px;
+  vertical-align: top;
+}
+th {
+  background: #f2f2f2;
+  text-align: left;
+}
+.note {
+  max-width: 1280px;
+  margin: 0 auto 35px;
+  font-size: 12px;
+  color: #333;
+}
+@media print {
+  body { background: white; }
+  .stage { min-height: 720px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>3D Case Mapping Graph</h1>
+  <div class="subtitle">Present case mapped with selected comparators for visual reference</div>
+</header>
+
+<div class="axis-key">
+  <div><strong>X-axis: Communication volume</strong>Relative number of texts/calls/messages. Present case is set at X=180 based on moderate overall volume and stated ~100 reciprocal messages before non-response.</div>
+  <div><strong>Y-axis: Severity / aggravation</strong>Risk/seriousness score based on threats, explicit stop requests, warnings, age/vulnerability, stalking/following, workplace/home attendance, and final hostility.</div>
+  <div><strong>Z-axis: Intent uncertainty / defence context</strong>Higher Z means stronger uncertainty about intent to harass, including reciprocity, lack of stop request, delivery doubt, illness, and possible technical explanations.</div>
+</div>
+
+<div class="stage">
+  <div class="scene">
+    <div class="face floor"></div>
+    <div class="face back"></div>
+    <div class="face side"></div>
+
+    <div class="axis-title axis-x">X: communication volume</div>
+    <div class="axis-title axis-y">Y: severity / aggravation</div>
+    <div class="axis-title axis-z">Z: intent uncertainty</div>
+
+    <div class="ticks"><span style="left:-10.0px; top:572px;">0</span><span style="left:102.0px; top:572px;">100</span><span style="left:214.0px; top:572px;">200</span><span style="left:326.0px; top:572px;">300</span><span style="left:438.0px; top:572px;">400</span><span style="left:550.0px; top:572px;">500</span><span style="left:-42px; top:552.0px;">0</span><span style="left:-42px; top:440.0px;">20</span><span style="left:-42px; top:328.0px;">40</span><span style="left:-42px; top:216.0px;">60</span><span style="left:-42px; top:104.0px;">80</span><span style="left:-42px; top:-8.0px;">100</span><span style="left:580px; top:552.0px; transform:translateZ(0.0px) rotateZ(38deg) rotateX(-62deg);">0</span><span style="left:580px; top:440.0px; transform:translateZ(112.0px) rotateZ(38deg) rotateX(-62deg);">20</span><span style="left:580px; top:328.0px; transform:translateZ(224.0px) rotateZ(38deg) rotateX(-62deg);">40</span><span style="left:580px; top:216.0px; transform:translateZ(336.0px) rotateZ(38deg) rotateX(-62deg);">60</span><span style="left:580px; top:104.0px; transform:translateZ(448.0px) rotateZ(38deg) rotateX(-62deg);">80</span><span style="left:580px; top:-8.0px; transform:translateZ(560.0px) rotateZ(38deg) rotateX(-62deg);">100</span></div>
+    
+    <div class="point-wrap" style="left:183.6px; top:329.2px; transform: translateZ(436.8px);" title="Present case: Moderate contact volume; moderate-low severity; high intent uncertainty based on stated reciprocity, no explicit stop request, and delivery/medical uncertainty.">
+      <div class="stem" style="height:436.8px;"></div>
+      <div class="point Present" style="width:36px;height:36px;border-radius:18px;"></div>
+      <div class="label present-label">
+        <strong>Present case</strong><br>
+        X=180, Y=38, Z=78
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:-0.9199999999999999px; top:448.2px; transform: translateZ(420.0px);" title="F.H.: Low volume; acquittal; useful low-severity comparator.">
+      <div class="stem" style="height:420.0px;"></div>
+      <div class="point Acquittal" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>F.H.</strong><br>
+        X=9, Y=18, Z=75
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:17.0px; top:414.6px; transform: translateZ(459.2px);" title="U.D. son: Parent-child context; intent not proven; acquittal.">
+      <div class="stem" style="height:459.2px;"></div>
+      <div class="point Acquittal" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>U.D. son</strong><br>
+        X=25, Y=24, Z=82
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:5.800000000000001px; top:280.2px; transform: translateZ(140.0px);" title="Perry: Repeated calls after being told to stop; conviction.">
+      <div class="stem" style="height:140.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Perry</strong><br>
+        X=15, Y=48, Z=25
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:114.44px; top:224.20000000000005px; transform: translateZ(168.0px);" title="Manrique: 110 texts and 2 calls over 48 hours; s.372 conviction upheld.">
+      <div class="stem" style="height:168.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Manrique</strong><br>
+        X=112, Y=58, Z=30
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:161.48px; top:201.8px; transform: translateZ(196.0px);" title="A.R.: High call volume; s.372 conviction.">
+      <div class="stem" style="height:196.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>A.R.</strong><br>
+        X=154, Y=62, Z=35
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:543.4px; top:241.0px; transform: translateZ(252.0px);" title="Jackman: 430 texts and 65 emails; s.372 conviction; s.264 failed.">
+      <div class="stem" style="height:252.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Jackman</strong><br>
+        X=495, Y=55, Z=45
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:549.0px; top:112.19999999999999px; transform: translateZ(112.0px);" title="Van-Mackelberg: 906 calls capped at x=500; s.372 conviction.">
+      <div class="stem" style="height:112.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Van-Mackelberg</strong><br>
+        X=500, Y=78, Z=20
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:123.4px; top:56.19999999999999px; transform: translateZ(112.0px);" title="Rancourt: Anonymous letters/calls; conviction restored.">
+      <div class="stem" style="height:112.0px;"></div>
+      <div class="point s264" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Rancourt</strong><br>
+        X=120, Y=88, Z=20
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:28.200000000000003px; top:-5.399999999999977px; transform: translateZ(84.0px);" title="Kordrostami: Minor complainant and sexualized context; conviction upheld.">
+      <div class="stem" style="height:84.0px;"></div>
+      <div class="point High" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Kordrostami</strong><br>
+        X=35, Y=99, Z=15
+      </div>
+    </div>
+    
+    <div class="point-wrap" style="left:549.0px; top:-11.0px; transform: translateZ(56.0px);" title="Choi: Extended workplace/sexualized harassment campaign; x capped at 500.">
+      <div class="stem" style="height:56.0px;"></div>
+      <div class="point High" style="width:22px;height:22px;border-radius:11px;"></div>
+      <div class="label small-label">
+        <strong>Choi</strong><br>
+        X=500, Y=100, Z=10
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<div class="legend">
+  <h2>Legend and Present-Case Inputs</h2>
+  <div class="legend-grid">
+    <div>
+      <p><span class="swatch" style="background:#ff7f0e"></span>Present case</p>
+      <p><span class="swatch" style="background:#2ca02c"></span>Acquittal comparators</p>
+      <p><span class="swatch" style="background:#d62728"></span>s.372(3) conviction comparators</p>
+      <p><span class="swatch" style="background:#9467bd"></span>s.264 criminal harassment comparators</p>
+      <p><span class="swatch" style="background:#555"></span>High-severity / jail-risk comparators</p>
+    </div>
+    <div>
+      <strong>Present case assumptions used:</strong>
+      <ul>
+        <li>Approximately 100 reciprocal messages before replies stopped.</li>
+        <li>No explicit stop request identified in reviewed materials.</li>
+        <li>No threats, following, workplace attendance, home attendance, or police warning identified.</li>
+        <li>Complainant described as adult, about 18 or older.</li>
+        <li>Possible technical/delivery uncertainty: no delivered/read indicator, possible block, battery, spam/junk, unread messages, or device issue.</li>
+        <li>Medical-context factor: illness, anxiety, fogginess, hallucinations, and odd behaviour recorded near the period.</li>
+      </ul>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Case</th><th>Group</th><th>X</th><th>Y</th><th>Z</th><th>Note</th></tr></thead>
+    <tbody><tr><td>Present case</td><td>Present</td><td>180</td><td>38</td><td>78</td><td>Moderate contact volume; moderate-low severity; high intent uncertainty based on stated reciprocity, no explicit stop request, and delivery/medical uncertainty.</td></tr><tr><td>F.H.</td><td>Acquittal</td><td>9</td><td>18</td><td>75</td><td>Low volume; acquittal; useful low-severity comparator.</td></tr><tr><td>U.D. son</td><td>Acquittal</td><td>25</td><td>24</td><td>82</td><td>Parent-child context; intent not proven; acquittal.</td></tr><tr><td>Perry</td><td>s372</td><td>15</td><td>48</td><td>25</td><td>Repeated calls after being told to stop; conviction.</td></tr><tr><td>Manrique</td><td>s372</td><td>112</td><td>58</td><td>30</td><td>110 texts and 2 calls over 48 hours; s.372 conviction upheld.</td></tr><tr><td>A.R.</td><td>s372</td><td>154</td><td>62</td><td>35</td><td>High call volume; s.372 conviction.</td></tr><tr><td>Jackman</td><td>s372</td><td>495</td><td>55</td><td>45</td><td>430 texts and 65 emails; s.372 conviction; s.264 failed.</td></tr><tr><td>Van-Mackelberg</td><td>s372</td><td>500</td><td>78</td><td>20</td><td>906 calls capped at x=500; s.372 conviction.</td></tr><tr><td>Rancourt</td><td>s264</td><td>120</td><td>88</td><td>20</td><td>Anonymous letters/calls; conviction restored.</td></tr><tr><td>Kordrostami</td><td>High</td><td>35</td><td>99</td><td>15</td><td>Minor complainant and sexualized context; conviction upheld.</td></tr><tr><td>Choi</td><td>High</td><td>500</td><td>100</td><td>10</td><td>Extended workplace/sexualized harassment campaign; x capped at 500.</td></tr></tbody>
+  </table>
+</div>
+
+<div class="note">
+  Demonstrative advocacy aid only. The coordinates are analytical placements, not judicial findings. The present-case point should be revised if verified disclosure changes.
+</div>
+</body>
+</html>
