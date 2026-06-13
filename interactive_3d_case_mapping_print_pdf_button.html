@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Interactive 3D Case Mapping Graph</title>
+<style>
+:root {
+  --cube: 620px;
+  --rx: 62deg;
+  --rz: -38deg;
+  --scale: .86;
+  --unrotate: rotateZ(38deg) rotateX(-62deg);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #f6f6f6;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+}
+header {
+  text-align: center;
+  padding: 18px 24px 6px;
+}
+h1 { margin: 0; font-size: 25px; }
+.subtitle { color:#444; margin-top:7px; font-size:14px; }
+.controls {
+  max-width: 1280px;
+  margin: 12px auto;
+  background: #fff;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+.controls label { display:block; }
+.controls input[type=range] { width:100%; }
+button {
+  padding: 8px 12px;
+  border: 1px solid #888;
+  background: #fafafa;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.axis-key {
+  max-width:1280px;
+  margin: 0 auto 10px;
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:12px;
+  font-size:13px;
+}
+.axis-key div {
+  background:#fff;
+  border:1px solid #bbb;
+  border-radius:8px;
+  padding:10px 12px;
+}
+.axis-key strong { display:block; margin-bottom:4px; font-size:14px; }
+.stage {
+  height: 850px;
+  perspective: 1500px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:auto;
+  background: linear-gradient(#f6f6f6, #fff);
+  cursor: grab;
+  user-select:none;
+}
+.stage.dragging { cursor: grabbing; }
+.scene {
+  width: var(--cube);
+  height: var(--cube);
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx)) rotateZ(var(--rz)) scale(var(--scale));
+  transition: transform .05s linear;
+}
+.face {
+  position:absolute;
+  width:var(--cube);
+  height:var(--cube);
+  border:2px solid rgba(0,0,0,.35);
+  background-size:62px 62px;
+  background-image:
+    linear-gradient(to right, rgba(40,80,120,.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(40,80,120,.18) 1px, transparent 1px);
+}
+.floor { transform: translateZ(0); background-color:rgba(232,246,255,.62); }
+.back {
+  transform: rotateX(90deg) translateZ(calc(var(--cube)/-2)) translateY(calc(var(--cube)/-2));
+  transform-origin: top;
+  background: rgba(255,255,255,.68);
+}
+.side {
+  transform: rotateY(90deg) translateZ(calc(var(--cube)/2)) translateX(calc(var(--cube)/2));
+  transform-origin: right;
+  background: rgba(245,250,255,.68);
+}
+.axis-title {
+  position:absolute;
+  font-weight:bold;
+  font-size:14px;
+  background:rgba(255,255,255,.92);
+  padding:6px 8px;
+  border:1px solid #bbb;
+  border-radius:6px;
+  white-space:nowrap;
+  box-shadow:0 6px 12px rgba(0,0,0,.12);
+}
+.axis-x { left: 390px; top: calc(var(--cube) + 28px); transform: translateZ(10px) var(--unrotate); }
+.axis-y { left: -185px; top: 75px; transform: translateZ(10px) var(--unrotate); }
+.axis-z { left: calc(var(--cube) - 40px); top: -80px; transform: translateZ(calc(var(--cube) + 28px)) var(--unrotate); }
+.tick {
+  position:absolute;
+  font-size:11px;
+  color:#333;
+  background:rgba(255,255,255,.82);
+  border:1px solid rgba(0,0,0,.08);
+  padding:1px 4px;
+  border-radius:3px;
+  transform: translateZ(8px) var(--unrotate);
+}
+.point-wrap {
+  position:absolute;
+  transform-style: preserve-3d;
+}
+.point {
+  position:absolute;
+  left:0; top:0;
+  border:2px solid #222;
+  box-shadow:0 12px 22px rgba(0,0,0,.35);
+}
+.Present { background:#ff7f0e; box-shadow:0 0 0 10px rgba(255,127,14,.24), 0 18px 30px rgba(0,0,0,.45); }
+.Acquittal { background:#2ca02c; }
+.s372 { background:#d62728; }
+.s264 { background:#9467bd; }
+.High { background:#555; }
+.stem {
+  position:absolute;
+  left:10px;
+  bottom:0;
+  width:2px;
+  background:rgba(0,0,0,.32);
+  transform-origin: bottom;
+  transform: rotateX(90deg);
+}
+.label {
+  position:absolute;
+  left:28px;
+  top:-16px;
+  background:rgba(255,255,255,.94);
+  border:1px solid #bbb;
+  border-radius:6px;
+  padding:5px 7px;
+  font-size:11px;
+  line-height:1.25;
+  white-space:nowrap;
+  transform: var(--unrotate);
+  box-shadow:0 8px 14px rgba(0,0,0,.14);
+  pointer-events:none;
+}
+.present-label {
+  left:44px;
+  top:-58px;
+  background:#fff8dc;
+  border-color:#c8b870;
+  font-size:13px;
+}
+.tooltip {
+  position: fixed;
+  z-index: 999;
+  display: none;
+  max-width: 360px;
+  background: #111;
+  color: white;
+  padding: 9px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.legend {
+  max-width:1280px;
+  margin:18px auto 30px;
+  background:#fff;
+  border:1px solid #bbb;
+  border-radius:8px;
+  padding:14px 18px;
+}
+.legend-grid {
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:18px;
+  font-size:13px;
+}
+.swatch {
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:6px;
+  border:1px solid #333;
+  margin-right:5px;
+  vertical-align:middle;
+}
+table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+  margin-top:10px;
+}
+th,td {
+  border:1px solid #ccc;
+  padding:6px 7px;
+  vertical-align:top;
+}
+th { background:#f2f2f2; text-align:left; }
+.note {
+  max-width:1280px;
+  margin: 0 auto 30px;
+  color:#333;
+  font-size:12px;
+}
+@media print {
+  @page { size: landscape; margin: 0.35in; }
+  body { background:white; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .controls { display:none; }
+  header { padding-top: 0; }
+  .axis-key { page-break-after: avoid; }
+  .stage {
+    height: 7.4in;
+    overflow: visible;
+    page-break-inside: avoid;
+  }
+  .scene {
+    transform: rotateX(62deg) rotateZ(-38deg) scale(.78) !important;
+  }
+  .legend {
+    page-break-before: always;
+  }
+  .note {
+    margin-bottom: 0;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Interactive 3D Case Mapping Graph</h1>
+  <div class="subtitle">Drag the graph to rotate. Use the sliders to adjust view and zoom.</div>
+</header>
+
+<div class="controls">
+  <label>Rotate X <input id="rx" type="range" min="25" max="85" value="62"></label>
+  <label>Rotate Z <input id="rz" type="range" min="-90" max="20" value="-38"></label>
+  <label>Zoom <input id="zoom" type="range" min="55" max="120" value="86"></label>
+  <button id="reset">Reset view</button><button id="printPdf">Print / Save PDF</button>
+</div>
+
+<div class="axis-key">
+  <div><strong>X-axis: Communication volume</strong>Relative number of texts/calls/messages. Present case: X=180.</div>
+  <div><strong>Y-axis: Severity / aggravation</strong>Threats, stop requests, police warnings, vulnerability, stalking/following, workplace/home attendance, final hostility. Present case: Y=38.</div>
+  <div><strong>Z-axis: Intent uncertainty / defence context</strong>Higher Z means stronger uncertainty about intent: reciprocity, lack of stop request, delivery doubt, illness, technical explanations. Present case: Z=78.</div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="scene" id="scene">
+    <div class="face floor"></div>
+    <div class="face back"></div>
+    <div class="face side"></div>
+
+    <div class="axis-title axis-x">X: communication volume</div>
+    <div class="axis-title axis-y">Y: severity / aggravation</div>
+    <div class="axis-title axis-z">Z: intent uncertainty</div>
+
+    <div class="ticks"><span class="tick xtick" style="left:-10.0px; top:634px;">0</span><span class="tick xtick" style="left:114.0px; top:634px;">100</span><span class="tick xtick" style="left:238.0px; top:634px;">200</span><span class="tick xtick" style="left:362.0px; top:634px;">300</span><span class="tick xtick" style="left:486.0px; top:634px;">400</span><span class="tick xtick" style="left:610.0px; top:634px;">500</span><span class="tick ytick" style="left:-48px; top:612.0px;">0</span><span class="tick ytick" style="left:-48px; top:488.0px;">20</span><span class="tick ytick" style="left:-48px; top:364.0px;">40</span><span class="tick ytick" style="left:-48px; top:240.0px;">60</span><span class="tick ytick" style="left:-48px; top:116.0px;">80</span><span class="tick ytick" style="left:-48px; top:-8.0px;">100</span><span class="tick ztick" style="left:642px; top:612.0px; transform: translateZ(0.0px) var(--unrotate);">0</span><span class="tick ztick" style="left:642px; top:488.0px; transform: translateZ(124.0px) var(--unrotate);">20</span><span class="tick ztick" style="left:642px; top:364.0px; transform: translateZ(248.0px) var(--unrotate);">40</span><span class="tick ztick" style="left:642px; top:240.0px; transform: translateZ(372.0px) var(--unrotate);">60</span><span class="tick ztick" style="left:642px; top:116.0px; transform: translateZ(496.0px) var(--unrotate);">80</span><span class="tick ztick" style="left:642px; top:-8.0px; transform: translateZ(620.0px) var(--unrotate);">100</span></div>
+    
+    <div class="point-wrap" data-name="Present case" data-x="180" data-y="38" data-z="78" data-note="Moderate volume; moderate-low aggravation; high defence-context score."
+         style="left:205.2px; top:366.4px; transform: translateZ(483.6px);">
+      <div class="stem" style="height:483.6px;"></div>
+      <div class="point Present" style="width:36px;height:36px;border-radius:18.0px;"></div>
+      <div class="label present-label">
+        <strong>Present case</strong><br>
+        X=180 · Y=38 · Z=78
+      </div>
+    </div>
+    <div class="point-wrap" data-name="F.H." data-x="9" data-y="18" data-z="75" data-note="Low-volume acquittal comparator."
+         style="left:0.2px; top:497.4px; transform: translateZ(465.0px);">
+      <div class="stem" style="height:465.0px;"></div>
+      <div class="point Acquittal" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>F.H.</strong><br>
+        X=9 · Y=18 · Z=75
+      </div>
+    </div>
+    <div class="point-wrap" data-name="U.D. son" data-x="25" data-y="24" data-z="82" data-note="Intent not proven; acquittal comparator."
+         style="left:20.0px; top:460.2px; transform: translateZ(508.4px);">
+      <div class="stem" style="height:508.4px;"></div>
+      <div class="point Acquittal" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>U.D. son</strong><br>
+        X=25 · Y=24 · Z=82
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Moncion" data-x="20" data-y="22" data-z="70" data-note="Specific intent not proven."
+         style="left:13.8px; top:472.6px; transform: translateZ(434.0px);">
+      <div class="stem" style="height:434.0px;"></div>
+      <div class="point Acquittal" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Moncion</strong><br>
+        X=20 · Y=22 · Z=70
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Perry" data-x="15" data-y="48" data-z="25" data-note="Repeated calls after being told to stop; conviction."
+         style="left:7.6px; top:311.4px; transform: translateZ(155.0px);">
+      <div class="stem" style="height:155.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Perry</strong><br>
+        X=15 · Y=48 · Z=25
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Manrique" data-x="112" data-y="58" data-z="30" data-note="112 communications over 48 hours; conviction upheld."
+         style="left:127.9px; top:249.4px; transform: translateZ(186.0px);">
+      <div class="stem" style="height:186.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Manrique</strong><br>
+        X=112 · Y=58 · Z=30
+      </div>
+    </div>
+    <div class="point-wrap" data-name="A.R." data-x="154" data-y="62" data-z="35" data-note="High call volume; s.372 conviction."
+         style="left:180.0px; top:224.6px; transform: translateZ(217.0px);">
+      <div class="stem" style="height:217.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>A.R.</strong><br>
+        X=154 · Y=62 · Z=35
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Jackman" data-x="495" data-y="55" data-z="45" data-note="495 communications; s.372 conviction."
+         style="left:602.8px; top:268.0px; transform: translateZ(279.0px);">
+      <div class="stem" style="height:279.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Jackman</strong><br>
+        X=495 · Y=55 · Z=45
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Van-Mackelberg" data-x="500" data-y="78" data-z="20" data-note="906 calls capped at X=500; s.372 conviction."
+         style="left:609.0px; top:125.4px; transform: translateZ(124.0px);">
+      <div class="stem" style="height:124.0px;"></div>
+      <div class="point s372" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Van-Mackelberg</strong><br>
+        X=500 · Y=78 · Z=20
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Rancourt" data-x="120" data-y="88" data-z="20" data-note="Anonymous calls/letters; criminal harassment conviction restored."
+         style="left:137.8px; top:63.4px; transform: translateZ(124.0px);">
+      <div class="stem" style="height:124.0px;"></div>
+      <div class="point s264" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Rancourt</strong><br>
+        X=120 · Y=88 · Z=20
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Kordrostami" data-x="35" data-y="99" data-z="15" data-note="Minor complainant and sexualized context; high severity."
+         style="left:32.4px; top:-4.8px; transform: translateZ(93.0px);">
+      <div class="stem" style="height:93.0px;"></div>
+      <div class="point High" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Kordrostami</strong><br>
+        X=35 · Y=99 · Z=15
+      </div>
+    </div>
+    <div class="point-wrap" data-name="Choi" data-x="500" data-y="100" data-z="10" data-note="Extended workplace/sexualized harassment campaign; high severity."
+         style="left:609.0px; top:-11.0px; transform: translateZ(62.0px);">
+      <div class="stem" style="height:62.0px;"></div>
+      <div class="point High" style="width:22px;height:22px;border-radius:11.0px;"></div>
+      <div class="label small-label">
+        <strong>Choi</strong><br>
+        X=500 · Y=100 · Z=10
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="legend">
+  <h2>Legend and Present-Case Inputs</h2>
+  <div class="legend-grid">
+    <div>
+      <p><span class="swatch" style="background:#ff7f0e"></span>Present case</p>
+      <p><span class="swatch" style="background:#2ca02c"></span>Acquittal comparators</p>
+      <p><span class="swatch" style="background:#d62728"></span>s.372(3) conviction comparators</p>
+      <p><span class="swatch" style="background:#9467bd"></span>s.264 criminal harassment comparators</p>
+      <p><span class="swatch" style="background:#555"></span>High-severity comparators</p>
+    </div>
+    <div>
+      <strong>Present case assumptions used:</strong>
+      <ul>
+        <li>Approximately 100 reciprocal messages before replies stopped.</li>
+        <li>No explicit stop request identified in reviewed materials.</li>
+        <li>No threats, following, workplace attendance, home attendance, or police warning identified.</li>
+        <li>Complainant described as adult, about 18 or older.</li>
+        <li>Possible technical/delivery uncertainty: no delivered/read indicator, possible block, battery, spam/junk, unread messages, or device issue.</li>
+        <li>Medical-context factor: illness, anxiety, fogginess, hallucinations, and odd behaviour recorded near the period.</li>
+      </ul>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Case</th><th>Group</th><th>X</th><th>Y</th><th>Z</th><th>Note</th></tr></thead>
+    <tbody><tr><td>Present case</td><td>Present</td><td>180</td><td>38</td><td>78</td><td>Moderate volume; moderate-low aggravation; high defence-context score.</td></tr><tr><td>F.H.</td><td>Acquittal</td><td>9</td><td>18</td><td>75</td><td>Low-volume acquittal comparator.</td></tr><tr><td>U.D. son</td><td>Acquittal</td><td>25</td><td>24</td><td>82</td><td>Intent not proven; acquittal comparator.</td></tr><tr><td>Moncion</td><td>Acquittal</td><td>20</td><td>22</td><td>70</td><td>Specific intent not proven.</td></tr><tr><td>Perry</td><td>s372</td><td>15</td><td>48</td><td>25</td><td>Repeated calls after being told to stop; conviction.</td></tr><tr><td>Manrique</td><td>s372</td><td>112</td><td>58</td><td>30</td><td>112 communications over 48 hours; conviction upheld.</td></tr><tr><td>A.R.</td><td>s372</td><td>154</td><td>62</td><td>35</td><td>High call volume; s.372 conviction.</td></tr><tr><td>Jackman</td><td>s372</td><td>495</td><td>55</td><td>45</td><td>495 communications; s.372 conviction.</td></tr><tr><td>Van-Mackelberg</td><td>s372</td><td>500</td><td>78</td><td>20</td><td>906 calls capped at X=500; s.372 conviction.</td></tr><tr><td>Rancourt</td><td>s264</td><td>120</td><td>88</td><td>20</td><td>Anonymous calls/letters; criminal harassment conviction restored.</td></tr><tr><td>Kordrostami</td><td>High</td><td>35</td><td>99</td><td>15</td><td>Minor complainant and sexualized context; high severity.</td></tr><tr><td>Choi</td><td>High</td><td>500</td><td>100</td><td>10</td><td>Extended workplace/sexualized harassment campaign; high severity.</td></tr></tbody>
+  </table>
+</div>
+
+<div class="note">
+  Demonstrative advocacy aid only. Coordinates are analytical placements, not judicial findings.
+</div>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const scene = document.getElementById('scene');
+  const rx = document.getElementById('rx');
+  const rz = document.getElementById('rz');
+  const zoom = document.getElementById('zoom');
+  const reset = document.getElementById('reset');
+  const printPdf = document.getElementById('printPdf');
+  const tooltip = document.getElementById('tooltip');
+
+  let rotX = 62;
+  let rotZ = -38;
+  let scale = 0.86;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function apply() {
+    root.style.setProperty('--rx', rotX + 'deg');
+    root.style.setProperty('--rz', rotZ + 'deg');
+    root.style.setProperty('--scale', scale);
+    root.style.setProperty('--unrotate', `rotateZ(${-rotZ}deg) rotateX(${-rotX}deg)`);
+    rx.value = Math.round(rotX);
+    rz.value = Math.round(rotZ);
+    zoom.value = Math.round(scale * 100);
+  }
+
+  rx.addEventListener('input', () => { rotX = Number(rx.value); apply(); });
+  rz.addEventListener('input', () => { rotZ = Number(rz.value); apply(); });
+  zoom.addEventListener('input', () => { scale = Number(zoom.value) / 100; apply(); });
+  reset.addEventListener('click', () => { rotX = 62; rotZ = -38; scale = 0.86; apply(); });
+  printPdf.addEventListener('click', () => { window.print(); });
+
+  stage.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    stage.classList.add('dragging');
+    lastX = e.clientX;
+    lastY = e.clientY;
+    stage.setPointerCapture(e.pointerId);
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    rotZ += dx * 0.22;
+    rotX -= dy * 0.18;
+    rotX = Math.max(20, Math.min(88, rotX));
+    rotZ = Math.max(-140, Math.min(60, rotZ));
+    lastX = e.clientX;
+    lastY = e.clientY;
+    apply();
+  });
+
+  stage.addEventListener('pointerup', (e) => {
+    dragging = false;
+    stage.classList.remove('dragging');
+  });
+
+  stage.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    scale += e.deltaY < 0 ? 0.04 : -0.04;
+    scale = Math.max(0.55, Math.min(1.25, scale));
+    apply();
+  }, { passive: false });
+
+  document.querySelectorAll('.point-wrap').forEach(el => {
+    el.addEventListener('mouseenter', (e) => {
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<strong>${el.dataset.name}</strong><br>X=${el.dataset.x} · Y=${el.dataset.y} · Z=${el.dataset.z}<br>${el.dataset.note}`;
+    });
+    el.addEventListener('mousemove', (e) => {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 14) + 'px';
+    });
+    el.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+    });
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>
